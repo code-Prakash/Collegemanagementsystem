@@ -6,6 +6,7 @@
 #include <stdexcept>
 using namespace std;
 
+
 class Login {
 private:
     string username;
@@ -99,7 +100,8 @@ public:
     void details() {
         try {
             cout << "Enter your name: ";
-            cin >> name;
+            cin.ignore();
+            getline(cin,name);
 
             cout << "Enter your phone number (10 digits): ";
             cin >> phone;
@@ -125,7 +127,7 @@ public:
         } catch (const invalid_argument& e) {
             cerr << "Error: " << e.what() << endl;
             logToFile("Error: " + string(e.what()));
-            details(); // Restart the input process
+            details(); 
         } catch (const runtime_error& e) {
             cerr << "File Error: " << e.what() << endl;
         }
@@ -332,6 +334,9 @@ public:
     string getenrollmentNumber() {
         return EnrollmentNo;
     }
+    double getTotalFees(){
+        return totalfees;
+    }
 };
 
 
@@ -339,7 +344,9 @@ class Payment_semester : private Admission {
 private:
     double amountPaid;
     double totalAmountDue;
+    double amountrequired;
     int paymentOption;
+    Admission admission; // Use composition
 
     void logToFile(const string& message) {
         ofstream logFile("payment_log.txt", ios::app); // Append mode
@@ -347,7 +354,6 @@ private:
             throw runtime_error("Unable to open log file!");
         }
         logFile << message << endl;
-        logFile.close();
     }
 
 public:
@@ -355,58 +361,44 @@ public:
         amountPaid = 0;
         totalAmountDue = 0;
         paymentOption = 0;
+        amountrequired = 0;
+    }
+
+    void setAdmission(const Admission& adm) {
+        admission = adm;
+        totalAmountDue = admission.getTotalFees(); // Access total fees from Admission
     }
 
     void choosePaymentOption() {
         try {
             cout << "Choose Payment Option:\n";
-            cout << "1. Yearly (10% discount)\n";
+            cout << "1. Yearly \n";
             cout << "2. Semester-wise\n";
-            cout << "3. Quarterly (5% extra charge)\n";
+            cout << "3. Quarterly \n";
             cout << "Enter your choice: ";
             cin >> paymentOption;
 
             if (paymentOption < 1 || paymentOption > 3) {
                 throw invalid_argument("Invalid payment option. Please choose a valid option.");
             }
-
-            switch (paymentOption) {
+            switch(paymentOption){
                 case 1:
-                    totalAmountDue = totalfees * 0.9; // 10% discount
-                    logToFile("Payment option selected: Yearly (10% discount applied)");
+                    amountrequired = totalAmountDue / 4;
                     break;
                 case 2:
-                    totalAmountDue = totalfees; // No discount
-                    logToFile("Payment option selected: Semester-wise");
+                    amountrequired = totalAmountDue /8; 
                     break;
                 case 3:
-                    totalAmountDue = totalfees * 1.05; // 5% extra charge
-                    logToFile("Payment option selected: Quarterly (5% extra charge applied)");
+                    amountrequired = totalAmountDue /16;
                     break;
+                default:
+                    throw invalid_argument("Invalid payment option. Please choose a valid option.");
             }
+            logToFile("Payment option selected: " + to_string(paymentOption));
         } catch (const invalid_argument& e) {
             cerr << "Error: " << e.what() << endl;
             logToFile("Error in payment option: " + string(e.what()));
-            choosePaymentOption(); // Retry input
-        } catch (const runtime_error& e) {
-            cerr << "File Error: " << e.what() << endl;
-        }
-    }
-
-    bool isLatePayment() {
-        time_t now = time(0);
-        tm *ltm = localtime(&now);
-        int dueDay = 15; // Assuming 15th of the month as the due date
-        return (ltm->tm_mday > dueDay);
-    }
-
-    void applyFine() {
-        try {
-            if (isLatePayment()) {
-                totalAmountDue += 500; // Late payment fine
-                cout << "A fine of Rs.500 has been added for late payment.\n";
-                logToFile("Late payment fine of Rs.500 added.");
-            }
+            choosePaymentOption(); 
         } catch (const runtime_error& e) {
             cerr << "File Error: " << e.what() << endl;
         }
@@ -414,21 +406,22 @@ public:
 
     void makePayment() {
         try {
-            applyFine(); // Check for late payment and apply fine
             cout << "Total amount due: Rs." << totalAmountDue << endl;
+            cout<<"Amount required to Pay: Rs." << amountrequired << endl;
             cout << "Enter the amount to pay: ";
             cin >> amountPaid;
 
-            if (amountPaid < totalAmountDue) {
+            if (amountPaid < amountrequired || amountPaid > amountrequired) {
                 throw logic_error("Insufficient payment. Payment failed.");
             }
 
+            totalAmountDue -= amountPaid;
             cout << "Payment successful! Thank you.\n";
             logToFile("Payment successful. Amount paid: Rs." + to_string(amountPaid));
         } catch (const logic_error& e) {
             cerr << "Error: " << e.what() << endl;
             logToFile("Error in payment: " + string(e.what()));
-            cout << "You still owe Rs." << totalAmountDue - amountPaid << endl;
+            cout << "You still owe Rs." << totalAmountDue << endl;
             cout << "Please pay the remaining amount to complete the payment.\n";
             makePayment(); // Retry payment
         } catch (const runtime_error& e) {
@@ -441,18 +434,18 @@ public:
             cout << "Payment Option: ";
             switch (paymentOption) {
                 case 1:
-                    cout << "Yearly (10% discount applied)\n";
+                    cout << "Yearly \n";
                     break;
                 case 2:
                     cout << "Semester-wise\n";
                     break;
                 case 3:
-                    cout << "Quarterly (5% extra charge applied)\n";
+                    cout << "Quarterly \n";
                     break;
                 default:
                     cout << "Not selected\n";
             }
-            cout << "Total Fees Due (after fines/discounts): Rs." << totalAmountDue << endl;
+            cout << "Total Fees Due : Rs." << totalAmountDue << endl;
             cout << "Amount Paid: Rs." << amountPaid << endl;
 
             logToFile("Displayed payment details for Enrollment: " + EnrollmentNo);
@@ -461,6 +454,7 @@ public:
         }
     }
 };
+
 
 class Student {
 public:
@@ -478,22 +472,21 @@ int main() {
     bool loggedIn = false;
     int choice;
 
-    cout << "====== Welcome to the College Management System ======\n";
+    cout << "====== Welcome to the College Management System ======"<<endl;
 
     while (true) {
-        cout << "\nPlease select an option:\n";
-        cout << "1. Login\n";
-        cout << "2. Registration\n";
-        cout << "3. Admission\n";
-        cout << "4. Payment\n";
-        cout << "5. View Admission Details\n";
-        cout << "6. Exit\n";
+        cout << endl << "Please select an option:"<<endl;
+        cout << "1. Login"<<endl;
+        cout << "2. Registration"<<endl;
+        cout << "3. Admission"<<endl;
+        cout << "4. Payment"<<endl;
+        cout << "5. View Admission Details"<<endl;
+        cout << "6. Exit"<<endl;
         cout << "Enter your choice: ";
 
-        // Input validation for menu choice
         if (!(cin >> choice)) {
-            cin.clear(); // Clear error flag
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Discard invalid input
+            cin.clear(); 
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
             cout << "Invalid input! Please enter a number.\n";
             continue;
         }
@@ -584,6 +577,7 @@ int main() {
                         }
 
                         if (students[paymentIndex - 1].admitted) {
+                            students[paymentIndex - 1].payment.setAdmission(students[paymentIndex - 1].admission);
                             students[paymentIndex - 1].payment.choosePaymentOption();
                             students[paymentIndex - 1].payment.makePayment();
                             students[paymentIndex - 1].paymentDone = true;
