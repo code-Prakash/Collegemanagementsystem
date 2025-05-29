@@ -1,3 +1,4 @@
+🎓 College Management System (C++ Project)
 This College Management System is a simple yet functional console-based application developed in C++ to simulate a basic workflow of college administration. It includes modules for user registration, login, admission processing, and payment management — all managed via object-oriented programming concepts.
 
 🚀 Features
